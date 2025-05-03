@@ -4,26 +4,25 @@
 // Created: 2025-04-01 23:28:17
 // ====================================
 
-module uart_tx #(
+module UartTx#(
     parameter CLK_FREQ = 50_000_000,        // System clock frequency in Hz
-    parameter BAUD_RATE = 9600,            // Desired baud rate for UART
-    parameter FRAME_BITS = 10              // Total bits in the frame (start + data + optional parity + stop)
+    parameter BAUD_RATE = 9600,             // Desired baud rate for UART
+    parameter FRAME_BITS = 10               // Total bits in the frame (start + data + optional parity + stop)
 )(
-    input wire clk,                        // System clock
-    input wire reset,                      // Asynchronous reset
-    input wire [FRAME_BITS-1:0] frame_data,// Full UART frame to transmit
-    input wire tx_start,                   // Start transmission signal
-    output reg tx,                         // UART TX line
-    output reg tx_busy,                    // High when transmitting
-    output reg tx_done                     // High for one cycle when done
+    input wire clk,                         // System clock
+    input wire rst,                         // Asynchronous reset
+    input wire [FRAME_BITS-1:0] frame_data, // Full UART frame to transmit
+    input wire tx_start,                    // Start transmission signal
+    output reg tx,                          // UART TX line
+    output reg tx_busy,                     // High when transmitting
+    output reg tx_done                      // High for one cycle when done
 );
 
     // Compute clocks per bit based on baud rate
     localparam CLKS_PER_BIT = CLK_FREQ / BAUD_RATE;
 
-    // Manually set width for bit_index; FRAME_BITS = 10 => 4 bits are enough
+    
     localparam BIT_INDEX_WIDTH = 4;
-
     reg [15:0] clk_count = 0;  // Counts clock cycles per bit
     reg [BIT_INDEX_WIDTH-1:0] bit_index = 0;  // Tracks bit position in frame
     reg [FRAME_BITS-1:0] tx_shift_reg;        // Shift register holding the frame
@@ -34,8 +33,8 @@ module uart_tx #(
                TRANS = 2'd1,
                DONE  = 2'd2;
 
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
             tx <= 1'b1;          // Idle state is high
             tx_busy <= 0;
             tx_done <= 0;
@@ -48,7 +47,7 @@ module uart_tx #(
                 IDLE: begin
                     tx <= 1'b1;
                     tx_done <= 0;
-                    if (tx_start) begin
+                    if (tx_start) begin // We order here to the TX module to start transmitting
                         tx_shift_reg <= frame_data;  // Load frame
                         tx_busy <= 1;
                         clk_count <= 0;

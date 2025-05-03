@@ -4,9 +4,9 @@
 // Created: 2025-04-02 22:57:20
 // ====================================
 
-module uart_rx_buffer (
+module UartRxBuffer(
     input wire clk,
-    input wire reset,
+    input wire rst,
     input wire rx_done,              // Pulse from uart_rx when a byte is received
     input wire [7:0] rx_byte,        // Received byte from uart_rx
     output reg [31:0] rx_float,      // Assembled 32-bit float
@@ -16,8 +16,8 @@ module uart_rx_buffer (
     reg [1:0] byte_count;            // Counts from 0 to 3
     reg [31:0] buffer;               // Temporary storage for 4 bytes
 
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
             byte_count <= 0;
             buffer <= 0;
             rx_float <= 0;

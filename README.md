@@ -4,5 +4,8 @@
 
 This a repo with all my verilog modules, Python scripts or whatever that I might feel that is going to be useful to re-use
 
+- src: verilog modules
+- tb test benches
+
 
 

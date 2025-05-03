@@ -4,9 +4,9 @@
 // Created: 2025-04-02 23:07:50
 // ====================================
 
-module uart_tx_buffer (
+module UartTxBuffer(
     input wire clk,
-    input wire reset,
+    input wire rst,
     input wire [31:0] tx_float,      // Float to be sent over UART
     input wire tx_valid,             // Pulse to trigger transmission
     input wire tx_busy,              // UART transmitter busy flag
@@ -18,8 +18,8 @@ module uart_tx_buffer (
     reg sending;
     reg [31:0] buffer;
 
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
             tx_data <= 8'b0;
             tx_start <= 0;
             byte_index <= 0;

@@ -23,13 +23,13 @@ module uart_tx_tb;
     wire tx_done;
 
     // Instantiate the UART transmitter
-    uart_tx #(
+    UartTx#(
         .CLK_FREQ(CLK_FREQ),
         .BAUD_RATE(BAUD_RATE),
         .FRAME_BITS(FRAME_BITS)
     ) uut (
         .clk(clk),
-        .reset(reset),
+        .rst(reset),
         .frame_data(frame_data),
         .tx_start(tx_start),
         .tx(tx),
@@ -48,21 +48,21 @@ module uart_tx_tb;
         // Initial values
         reset = 1;
         tx_start = 0;
-        frame_data = 10'b0;
+        frame_data = 10'b0_101110110;
 
         // Release reset
         #100;
         reset = 0;
 
         // Wait a bit and start transmission
-        #100;
-        frame_data = 10'b0_10101010_1; // Example frame: start=0, data=0xAA, stop=1
-        tx_start = 1;
         #20;
+        frame_data = 10'b0_10101111_1; // Example frame: start=0, data=0xAA, stop=1
+        tx_start = 1;
+        #200;
         tx_start = 0;
 
         // Wait long enough for transmission to complete
-        #200000;
+        #1_100_000;
 
         $finish;
     end
