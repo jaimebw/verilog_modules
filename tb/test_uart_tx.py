@@ -64,7 +64,7 @@ def test_uart_tx_runner():
     run(
         verilog_sources=[rtl_file],
         toplevel="UartTx",
-        module="test_uart_tx",
+        module=Path(__file__).stem,
         parameters={"FRAME_BITS": 10},
         waves=True,
         sim_build=this_dir / "sim_build",
