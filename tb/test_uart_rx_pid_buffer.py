@@ -1,7 +1,7 @@
 # ====================================
-# File: test_uart_rx.py
+# File: test_uart_rx_pid_buffer.py
 # Author: jaimebw
-# Created: 2025-05-04 22:06:58
+# Created: 2025-05-05 21:35:46
 # ====================================
 
 import cocotb
