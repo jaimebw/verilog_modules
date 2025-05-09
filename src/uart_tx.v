@@ -3,7 +3,6 @@
 // Author: jaimebw
 // Created: 2025-04-01 23:28:17
 // ====================================
-
 module UartTx#(
     parameter CLK_FREQ = 50_000_000,        // System clock frequency in Hz
     parameter BAUD_RATE = 9600,             // Desired baud rate for UART

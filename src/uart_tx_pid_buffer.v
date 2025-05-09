@@ -4,7 +4,7 @@
 // Created: 2025-04-26 19:59:30
 // ====================================
 
-module UartTxPidBuffer(
+module UartTxPidBuffer( 
     input  wire        clk,
     input  wire        rst,
     input  wire [31:0] tx_float,     // Word to send over UART
