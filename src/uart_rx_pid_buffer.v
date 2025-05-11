@@ -4,17 +4,6 @@
 // Created: 2025-04-06 15:13:34
 // ====================================
 
-// ====================================
-// File: UartRxPidBuffer.v
-// Author: jaimebw
-// Created: 2025-04-06 15:13:34
-// ====================================
-// ====================================
-// File: UartRxPidBuffer.v
-// Author: jaimebw
-// Created: 2025-04-06 15:13:34
-// ====================================
-
 module UartRxPidBuffer(
     input  wire        clk,
     input  wire        rst,
@@ -23,161 +12,104 @@ module UartRxPidBuffer(
     output reg  [31:0] a1,
     output reg  [31:0] a2,
     output reg         ready,
-    output reg         test   // Check if in test mode
+    output reg         test
 );
 
-    // State & data buffers
-    reg             expect_pid;
-    reg  [7:0]      current_pid;
-    reg  [7:0]      a1_bytes [3:0];
-    reg  [7:0]      a2_bytes [3:0];
-    reg  [7:0]      received_flags;
+    // Frame constants
+    localparam TEST_PID    = 8'h69;
+    localparam START_FRAME = 8'hAA;
+    localparam END_FRAME   = 8'h55;
 
-    localparam TEST_PID = 8'h69;
+    // FSM states
+    localparam IDLE      = 2'd0;
+    localparam GOT_START = 2'd1;
+    localparam GOT_PID   = 2'd2;
+    localparam GOT_VAL   = 2'd3;
 
-    // ----------------------------------------------------------------
-    // Block 1: Byte collection & flag updates
-    // ----------------------------------------------------------------
+    reg [1:0] state;
+    reg [7:0] pid_byte;
+    reg [7:0] value_byte;
+
+    reg [7:0] a1_bytes [3:0];
+    reg [7:0] a2_bytes [3:0];
+
+    // FSM: handle byte reception
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            expect_pid     <= 1'b1;
-            current_pid    <= 8'h00;
-            received_flags <= 8'h00;
-            // Clear byte buffers
-            a1_bytes[0]    <= 8'h00;
-            a1_bytes[1]    <= 8'h00;
-            a1_bytes[2]    <= 8'h00;
-            a1_bytes[3]    <= 8'h00;
-            a2_bytes[0]    <= 8'h00;
-            a2_bytes[1]    <= 8'h00;
-            a2_bytes[2]    <= 8'h00;
-            a2_bytes[3]    <= 8'h00;
-        end else begin
-            if (rx_done) begin
-                if (expect_pid) begin
-                    current_pid <= rx_byte;
-                    expect_pid  <= 1'b0;
-                end else begin
-                    // Update flags
-                    case (current_pid)
-                        8'h10: received_flags[0] <= 1'b1;
-                        8'h11: received_flags[1] <= 1'b1;
-                        8'h12: received_flags[2] <= 1'b1;
-                        8'h13: received_flags[3] <= 1'b1;
-                        8'h20: received_flags[4] <= 1'b1;
-                        8'h21: received_flags[5] <= 1'b1;
-                        8'h22: received_flags[6] <= 1'b1;
-                        8'h23: received_flags[7] <= 1'b1;
-                        TEST_PID: received_flags  <= 8'hFF;
-                        default: ;
-                    endcase
+            state       <= IDLE;
+            pid_byte    <= 8'h00;
+            value_byte  <= 8'h00;
 
-                    // Store byte
-                    if      (current_pid == 8'h10) a1_bytes[3] <= rx_byte;
-                    else if (current_pid == 8'h11) a1_bytes[2] <= rx_byte;
-                    else if (current_pid == 8'h12) a1_bytes[1] <= rx_byte;
-                    else if (current_pid == 8'h13) a1_bytes[0] <= rx_byte;
-                    else if (current_pid == 8'h20) a2_bytes[3] <= rx_byte;
-                    else if (current_pid == 8'h21) a2_bytes[2] <= rx_byte;
-                    else if (current_pid == 8'h22) a2_bytes[1] <= rx_byte;
-                    else if (current_pid == 8'h23) a2_bytes[0] <= rx_byte;
-                    else if (current_pid == TEST_PID) begin
-                        a1_bytes[0] <= rx_byte;
-                        a2_bytes[0] <= rx_byte;
-                    end
+            a1_bytes[0] <= 8'h00;
+            a1_bytes[1] <= 8'h00;
+            a1_bytes[2] <= 8'h00;
+            a1_bytes[3] <= 8'h00;
 
-                    expect_pid <= 1'b1;
+            a2_bytes[0] <= 8'h00;
+            a2_bytes[1] <= 8'h00;
+            a2_bytes[2] <= 8'h00;
+            a2_bytes[3] <= 8'h00;
+
+        end else if (rx_done) begin
+            case (state)
+                IDLE: begin
+                    if (rx_byte == START_FRAME)
+                        state <= GOT_START;
                 end
-            end
+
+                GOT_START: begin
+                    pid_byte <= rx_byte;
+                    state    <= GOT_PID;
+                end
+
+                GOT_PID: begin
+                    value_byte <= rx_byte;
+                    state      <= GOT_VAL;
+                end
+
+                GOT_VAL: begin
+                    if (rx_byte == END_FRAME) begin
+                        // Commit value to correct position
+                        case (pid_byte)
+                            8'h10: a1_bytes[3] <= value_byte;
+                            8'h11: a1_bytes[2] <= value_byte;
+                            8'h12: a1_bytes[1] <= value_byte;
+                            8'h13: a1_bytes[0] <= value_byte;
+                            8'h20: a2_bytes[3] <= value_byte;
+                            8'h21: a2_bytes[2] <= value_byte;
+                            8'h22: a2_bytes[1] <= value_byte;
+                            8'h23: a2_bytes[0] <= value_byte;
+                            TEST_PID: begin
+                                a1_bytes[0] <= value_byte;
+                                a2_bytes[0] <= value_byte;
+                            end
+                            default: ; // ignore
+                        endcase
+                    end
+                    state <= IDLE;
+                end
+
+                default: state <= IDLE;
+            endcase
         end
     end
 
-    // ----------------------------------------------------------------
-    // Block 2: Packet-complete detection and outputs
-    // ----------------------------------------------------------------
+    // Output: rebuild a1/a2 and mark ready
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            a1    <= 32'h0000_0000;
-            a2    <= 32'h0000_0000;
+            a1    <= 32'h00000000;
+            a2    <= 32'h00000000;
             ready <= 1'b0;
             test  <= 1'b0;
         end else begin
-            // default: deassert each cycle
-            ready <= 1'b0;
-            test  <= 1'b0;
-
-            if (received_flags == 8'hFF) begin
-                // assemble outputs
-                a1    <= { a1_bytes[3], a1_bytes[2], a1_bytes[1], a1_bytes[0] };
-                a2    <= { a2_bytes[3], a2_bytes[2], a2_bytes[1], a2_bytes[0] };
-                ready <= 1'b1;
-                if (current_pid == TEST_PID)
-                    test <= 1'b1;
-
-                // clear for next packet
-                received_flags <= 8'h00;
-            end
+            a1    <= { a1_bytes[3], a1_bytes[2], a1_bytes[1], a1_bytes[0] };
+            a2    <= { a2_bytes[3], a2_bytes[2], a2_bytes[1], a2_bytes[0] };
+            ready <= 1'b1;
+            test  <= (pid_byte == TEST_PID);
         end
     end
 
 endmodule
 
-
-    // always @(posedge clk or posedge rst) begin
-    //     if (rst) begin
-    //         expect_pid <= 1;
-    //         current_pid <= 0;
-    //         received_flags <= 0;
-    //         a1 <= 0;
-    //         a2 <= 0;
-    //         ready <= 0;
-    //         test<= 0;
-    //     end else begin
-    //         ready <= 0; // default unless set below
-
-    //         if (rx_done) begin
-    //             if (expect_pid) begin
-    //                 current_pid <= rx_byte;
-    //                 expect_pid <= 0;
-    //             end else begin
-    //                 if (current_pid == GO_PID) begin
-    //                     if (received_flags == 8'hFF) begin
-    //                         a1 <= {a1_bytes[3], a1_bytes[2], a1_bytes[1], a1_bytes[0]};
-    //                         a2 <= {a2_bytes[3], a2_bytes[2], a2_bytes[1], a2_bytes[0]};
-    //                         ready <= 1;
-    //                         received_flags <= 0; // reset for next packet
-    //                     end
-    //                 end else if (current_pid == TEST_PID) begin
-    //                     if (received_flags == 8'hFF) begin
-    //                         a1 <= {a1_bytes[3], a1_bytes[2], a1_bytes[1], a1_bytes[0]};
-    //                         a2 <= {a2_bytes[3], a2_bytes[2], a2_bytes[1], a2_bytes[0]};
-    //                         ready <= 1;
-    //                         received_flags <= 0; // reset for next packet
-    //                         test <= 1;
-    //                     end else begin
-    //                         ready <= 0;  // Clear ready after one cycle
-    //                     end
-    //                 end else begin
-    //                     case (current_pid)
-    //                         8'h10: begin a1_bytes[3] <= rx_byte; received_flags[0] <= 1; end  // PID = 0x10
-    //                         8'h11: begin a1_bytes[2] <= rx_byte; received_flags[1] <= 1; end  // PID = 0x11
-    //                         8'h12: begin a1_bytes[1] <= rx_byte; received_flags[2] <= 1; end  // PID = 0x12
-    //                         8'h13: begin a1_bytes[0] <= rx_byte; received_flags[3] <= 1; end  // PID = 0x13
-    //                         8'h20: begin a2_bytes[3] <= rx_byte; received_flags[4] <= 1; end  // PID = 0x20
-    //                         8'h21: begin a2_bytes[2] <= rx_byte; received_flags[5] <= 1; end  // PID = 0x21
-    //                         8'h22: begin a2_bytes[1] <= rx_byte; received_flags[6] <= 1; end  // PID = 0x22
-    //                         8'h23: begin a2_bytes[0] <= rx_byte; received_flags[7] <= 1; end  // PID = 0x23
-    //                         // TEST PID
-    //                         8'h69: begin a2_bytes[0] <= rx_byte; a1_bytes[0]<=rx_byte; received_flags <= 8'hFF; end  // PID = 0x69
-
-
-    //                         default: ; // Ignore unknown PIDs
-    //                     endcase
-    //                 end
-    //                 expect_pid <= 1;
-    //             end
-    //         end
-    //     end
-    // end
 
 
