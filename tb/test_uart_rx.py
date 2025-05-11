@@ -18,6 +18,7 @@ COCOTB_RESOLVE_X = 1
 CLK_FREQ = 50_000_000
 BAUD_RATE = 9600
 CLKS_PER_BIT = CLK_FREQ // BAUD_RATE
+MID_BIT= CLKS_PER_BIT// 2
 BIT_TIME_NS = CLKS_PER_BIT * 20  # 20ns per clock tick at 50MHzk
 FRAME_BITS =8 
 
@@ -25,6 +26,18 @@ FRAME_BITS =8
 START_BIT = 0
 STOP_BIT  = 1
 
+async def run_cycles(dut, n):
+    for _ in range(n):
+        await RisingEdge(dut.clk)
+
+
+async def watch_rx_done(dut):
+    for _ in range(100_000):
+        await RisingEdge(dut.clk)
+        if dut.rx_done.value == 1:
+            print("rx_done detected!")
+            return
+    assert False, "rx_done was never asserted"
 
 @cocotb.test()
 async def uart_rx_test(dut):
@@ -57,11 +70,14 @@ async def uart_rx_test(dut):
 
     await Timer(BIT_TIME_NS, units="ns")
     assert dut.rx_busy.value == 1
-    
+
+    rx_done_task = cocotb.start_soon(watch_rx_done(dut))
     for index, bit in enumerate(frame_bits):
         dut.rx.value  = bit                 # line idle
+        assert dut.rx_data.value == 0
         await Timer(BIT_TIME_NS, units="ns")
 
+    assert dut.rx_data.value != 0
 
 
 

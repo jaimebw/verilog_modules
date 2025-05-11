@@ -6,7 +6,7 @@
 module UartTx#(
     parameter CLK_FREQ = 50_000_000,        // System clock frequency in Hz
     parameter BAUD_RATE = 9600,             // Desired baud rate for UART
-    parameter FRAME_BITS = 10               // Total bits in the frame (start + data + optional parity + stop)
+    parameter FRAME_BITS = 8// Total bits in the frame (start + data + optional parity + stop)
 )(
     input wire clk,                         // System clock
     input wire rst,                         // Asynchronous reset
@@ -20,12 +20,12 @@ module UartTx#(
     // Compute clocks per bit based on baud rate
     localparam CLKS_PER_BIT = CLK_FREQ / BAUD_RATE;
 
-    
+     
     localparam BIT_INDEX_WIDTH = 4;
     reg [15:0] clk_count = 0;  // Counts clock cycles per bit
     reg [BIT_INDEX_WIDTH-1:0] bit_index = 0;  // Tracks bit position in frame
     reg [FRAME_BITS-1:0] tx_shift_reg;        // Shift register holding the frame
-
+    
     // State machine states
     reg [1:0] state;
     localparam IDLE  = 2'd0,
