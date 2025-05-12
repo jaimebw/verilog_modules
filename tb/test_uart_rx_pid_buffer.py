@@ -22,7 +22,6 @@ END_FRAME = 0x55
 
 
 async def send_byte(dut,pid_or_data):
-    # drive a single byte into dut.rx_byte, pulsing rx_done for 1 cycle
     dut.rx_byte.value = pid_or_data
     dut.rx_done.value = 1
     await RisingEdge(dut.clk)
@@ -63,6 +62,7 @@ async def operationTest_mode(dut):
     await RisingEdge(dut.clk)
     #assert dut.ready.value == 1, f"ready was {int(dut.ready.value)}"
     assert dut.test.value  == 1, f"test was {int(dut.test.value)}"
+    assert dut.ready.value  == 1
     assert dut.a1.value    ==  TEST_VAL
     assert dut.a1.value    ==  dut.a2.value
     await ready_flag

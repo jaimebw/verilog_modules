@@ -67,10 +67,18 @@ always @(posedge clk or posedge rst) begin
                 end else begin
                     clk_count <= 0;
                     shift_reg[bit_index] <= rx;
-                    bit_index <= bit_index + 1;
+                    //bit_index <= bit_index + 1;
+                    // if (bit_index == FRAME_BITS - 1) begin
+                    //     state <= DONE;
+                    // end
+                    //
                     if (bit_index == FRAME_BITS - 1) begin
                         state <= DONE;
+                    end else begin
+                        bit_index <= bit_index + 1;
                     end
+
+
                 end
             end
             DONE: begin
