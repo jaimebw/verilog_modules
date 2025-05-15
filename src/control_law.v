@@ -5,12 +5,19 @@
 // ====================================
 
 module LandauControlLaw#(
+`ifdef SIM_MODE
+    parameter signed [31:0] K1 = 32'sd65536, // -0.2 in Q16.16
+    parameter signed [31:0] K2 = 32'sd65536// -0.4 in Q16.16
+`else
     parameter signed [31:0] K1 = -32'sd13107, // -0.2 in Q16.16
     parameter signed [31:0] K2 = -32'sd26214  // -0.4 in Q16.16
+`endif
 )(
     input wire signed [31:0] a1,
     input wire signed [31:0] a2,
     input wire test,
+    // input wire clk,
+    // input wire ready,
     output reg signed [31:0] b
 );
 

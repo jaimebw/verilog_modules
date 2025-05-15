@@ -32,54 +32,128 @@ def pack_val(byte_list):
 async def operationNormal_mode(dut):
     """Verify START, PID, 4 data bytes, END in normal (DATA_PID) mode."""
     START_DEL, DATA_PID, END_DEL = 0xAA, 0x69, 0x55
-    VALUES_TO_PACK =[ 0xA1,0xBE,0x12,0xC1]
+    VALUES_TO_PACK = [0xA1, 0xBE, 0x12, 0xC1]
     VALUE = pack_val(VALUES_TO_PACK)
 
-    # 50-MHz free-running clock
+    # Start 50 MHz clock (20ns period)
     cocotb.start_soon(Clock(dut.clk, 20, units="ns").start())
-    # Recuerda iniciar todo.... o te salen cosas raras
-    dut.rst.value      = 1
-    dut.test.value      =0 
+
+    # Reset
+    dut.rst.value = 1
+    dut.test.value = 0
     dut.tx_valid.value = 0
-    dut.tx_busy.value  = 1                      # UART busy during reset
+    dut.tx_busy.value = 1  # simulate UART busy at reset
     await RisingEdge(dut.clk)
-    dut.rst.value      = 0
+    dut.rst.value = 0
     await RisingEdge(dut.clk)
 
-    # Load the value into the buffer
-
+    # Send tx_valid while UART is busy (tx_busy = 1)
     dut.tx_valid.value = 1
     dut.tx_float.value = VALUE
     await RisingEdge(dut.clk)
+    dut.tx_valid.value = 0  # pulse done
+
+    # Now clear tx_busy so FSM can move
+    dut.tx_busy.value = 0
     await RisingEdge(dut.clk)
-    dut.tx_valid.value = 0 # Not accepting another data input for now ofc
-    # Start the reading circle
+
     sent = []
+
+    # Wait for 7 tx_start pulses and capture tx_data
     for i in range(7):
-        # Primer cicle S_LOAD
+        # Wait until tx_start is asserted
+        while dut.tx_start.value == 0:
+            await RisingEdge(dut.clk)
+
+        # Latch tx_data on tx_start
+        sent.append(int(dut.tx_data.value))
+        print(f"Byte {i}: {hex(sent[-1])}")
+
+        # Advance FSM out of WAITBUSY
         dut.tx_busy.value = 1
         await RisingEdge(dut.clk)
-        sent.append(dut.tx_data.value)
-        print(f"Iteration {i} Value: {dut.tx_data.value}")
-        assert dut.tx_start.value == 1
-        #
-        await RisingEdge(dut.clk)
-        assert dut.tx_start.value == 0
         dut.tx_busy.value = 0
-        # Son dos ciclos de reloj lo que necesito aqui jeje
-        await RisingEdge(dut.clk)
         await RisingEdge(dut.clk)
 
-
-
-    print(sent)
-    assert sent[0] == START_DEL
-    assert sent[6] == END_DEL
-    assert sent[1] == DATA_PID
+    # Check framing correctness
+    assert sent[0] == START_DEL, "Start delimiter incorrect"
+    assert sent[1] == DATA_PID, "PID incorrect"
     assert sent[2] == VALUES_TO_PACK[0]
     assert sent[3] == VALUES_TO_PACK[1]
     assert sent[4] == VALUES_TO_PACK[2]
     assert sent[5] == VALUES_TO_PACK[3]
+    assert sent[6] == END_DEL, "End delimiter incorrect"
+# @cocotb.test()
+# async def operationNormal_mode(dut):
+#     """Verify START, PID, 4 data bytes, END in normal (DATA_PID) mode."""
+#     START_DEL, DATA_PID, END_DEL = 0xAA, 0x69, 0x55
+#     VALUES_TO_PACK =[ 0xA1,0xBE,0x12,0xC1]
+#     VALUE = pack_val(VALUES_TO_PACK)
+
+#     # 50-MHz free-running clock
+#     cocotb.start_soon(Clock(dut.clk, 20, units="ns").start())
+#     # Recuerda iniciar todo.... o te salen cosas raras
+#     dut.rst.value      = 1
+#     dut.test.value      =0 
+#     dut.tx_valid.value = 0
+#     dut.tx_busy.value  = 1                      # UART busy during reset
+#     await RisingEdge(dut.clk)
+#     dut.rst.value      = 0
+#     await RisingEdge(dut.clk)
+
+#     # Load the value into the buffer
+
+#     dut.tx_valid.value = 1
+#     dut.tx_float.value = VALUE
+#     await RisingEdge(dut.clk)
+#     await RisingEdge(dut.clk)
+#     dut.tx_valid.value = 0 # Not accepting another data input for now ofc
+#     # Start the reading circle
+#     sent = []
+#     # Mine
+#     # for i in range(7):
+#     #     # Primer cicle S_LOAD
+#     #     dut.tx_busy.value = 1
+#     #     await RisingEdge(dut.clk)
+#     #     sent.append(dut.tx_data.value)
+#     #     print(f"Iteration {i} Value: {dut.tx_data.value}")
+#     #     assert dut.tx_start.value == 1
+#     #     #
+#     #     await RisingEdge(dut.clk)
+#     #     assert dut.tx_start.value == 0
+#     #     dut.tx_busy.value = 0
+#     #     # Son dos ciclos de reloj lo que necesito aqui jeje
+#     #     await RisingEdge(dut.clk)
+#     #     await RisingEdge(dut.clk)
+#     for i in range(7):
+#         # Wait until tx_start is asserted
+#         while dut.tx_start.value == 0:
+#             await RisingEdge(dut.clk)
+
+#         # Latch data when tx_start pulses
+#         sent.append(int(dut.tx_data.value))
+#         print(f"Iteration {i} Value: {dut.tx_data.value}")
+
+#         # Pulse ends next clock
+#         await RisingEdge(dut.clk)
+#         assert dut.tx_start.value == 0
+
+#         # Simulate UART busy and wait
+#         dut.tx_busy.value = 1
+#         await RisingEdge(dut.clk)
+#         dut.tx_busy.value = 0
+#         await RisingEdge(dut.clk)
+
+
+
+#     print(sent)
+#     assert sent[0] == START_DEL
+#     assert sent[6] == END_DEL 
+#     assert sent[1] == DATA_PID
+#     assert sent[2] == VALUES_TO_PACK[0]
+#     assert sent[3] == VALUES_TO_PACK[1]
+#     assert sent[4] == VALUES_TO_PACK[2]
+#     assert sent[5] == VALUES_TO_PACK[3]
 
 
 
