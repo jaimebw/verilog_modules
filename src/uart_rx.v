@@ -1,3 +1,9 @@
+// ====================================
+// File: uart_rx.v
+// Author: jaimebw
+// Created: 2025-05-14 23:12:21
+// ====================================
+
 module UartRx#(
     parameter CLK_FREQ = 50_000_000,
     parameter BAUD_RATE = 9600,
