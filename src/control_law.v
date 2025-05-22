@@ -3,11 +3,10 @@
 // Author: jaimebw
 // Created: 2025-04-06 13:54:08
 // ====================================
-
 module LandauControlLaw#(
 `ifdef SIM_MODE
-    parameter signed [31:0] K1 = 32'sd65536, // -0.2 in Q16.16
-    parameter signed [31:0] K2 = 32'sd65536// -0.4 in Q16.16
+    parameter signed [31:0] K1 = 32'sd65536,  // 1.0 in Q16.16
+    parameter signed [31:0] K2 = 32'sd65536   // 1.0 in Q16.16
 `else
     parameter signed [31:0] K1 = -32'sd13107, // -0.2 in Q16.16
     parameter signed [31:0] K2 = -32'sd26214  // -0.4 in Q16.16
@@ -16,26 +15,19 @@ module LandauControlLaw#(
     input wire signed [31:0] a1,
     input wire signed [31:0] a2,
     input wire test,
-    // input wire clk,
-    // input wire ready,
     output reg signed [31:0] b
 );
 
-    reg signed [63:0] mult1;
-    reg signed [63:0] mult2;
-    reg signed [63:0] sum;
+    wire signed [63:0] mult1_wide = a1 * K1;
+    wire signed [63:0] mult2_wide = a2 * K2;
+    wire signed [63:0] sum_wide   = mult1_wide + mult2_wide;
+    wire signed [31:0] sum_result = sum_wide[47:16];
 
     always @(*) begin
         if (test) begin
-            mult1 = 0;
-            mult2 = 0;
-            sum = {32'b0, a1 + 32'sh00010000}; // Add 1.0
-            b = a1 + 32'sh00010000;            // Output is a1 + 1.0
+            b = a1 + 32'sh00010000; // Add 1.0 in Q16.16
         end else begin
-            mult1 = a1 * K1;
-            mult2 = a2 * K2;
-            sum = mult1 + mult2;
-            b = sum[47:16]; // Take Q16.16 result
+            b = sum_result;
         end
     end
 
